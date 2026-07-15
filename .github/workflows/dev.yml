@@ -1,0 +1,90 @@
+name: Deploy Authentication Service v2 to DEV
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+
+jobs:
+  # ----------------------------
+  # Tests gate the deploy. Unit tests plus the Testcontainers-free integration tests
+  # (mongodb-memory-server spins up a real Mongo replica set in-process for the transaction /
+  # concurrency / reminder suites), so the full suite runs in CI with no extra services.
+  # ----------------------------
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test (unit + in-process Mongo e2e)
+        run: npm test
+
+  build-and-deploy-auth-v2:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.DEARLAVION_PAT }}
+
+      - name: Build Docker image
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --push \
+            -t ghcr.io/dearlavion/dearlavion-authentication-service-v2:dev \
+            .
+
+      - name: Checkout Ansible repo
+        uses: actions/checkout@v4
+        with:
+          repository: dearlavion/dearlavion-projects
+          path: dearlavion-projects
+          token: ${{ secrets.DEARLAVION_PAT }}
+
+      - name: Install Ansible
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip python3-venv
+          python3 -m pip install --user ansible docker
+          export PATH=$HOME/.local/bin:$PATH
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEV_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 157.173.97.37 >> ~/.ssh/known_hosts
+
+      - name: Deploy Authentication Service v2
+        working-directory: dearlavion-projects/ansible
+        run: |
+          export PATH=$HOME/.local/bin:$PATH
+          ansible-playbook \
+            playbook/site.yml \
+            -i inventory/hosts.ini \
+            -e "target=auth-v2 env=dev ssh_user=baish ssh_host=157.173.97.37 use_registry=true ghcr_pat=${{ secrets.DEARLAVION_PAT }}" \
+            --ssh-extra-args="-o StrictHostKeyChecking=no"
