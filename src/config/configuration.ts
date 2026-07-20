@@ -4,6 +4,8 @@
  */
 export interface AppConfig {
   port: number;
+  /** Tenant this deployment serves. Stamped into issued JWTs and enforced on verify. */
+  customer: string;
   mongoUri: string;
   jwt: {
     secretBase64: string;
@@ -25,6 +27,7 @@ const V1_JWT_KEY = '5B6F7D3E2A9C4B8E0A1F6D9B3E7A2C9D4F8E5B6C3A7B1D6F4C9A3E8D2B5F
 
 export default (): AppConfig => ({
   port: parseInt(process.env.PORT ?? '9081', 10),
+  customer: process.env.CUSTOMER ?? 'dearlavion',
   mongoUri: process.env.MONGODB_URI ?? 'mongodb://localhost:27017/authentication-service',
   jwt: {
     secretBase64: process.env.JWT_SECRET ?? V1_JWT_KEY,

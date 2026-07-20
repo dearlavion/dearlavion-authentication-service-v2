@@ -100,13 +100,28 @@ export class AuthController {
     if (!token || token.trim() === '') {
       throw new BadRequestException({ valid: false, error: 'Token missing' });
     }
-    const username = this.jwtService.extractUsername(token);
+    const claims = this.jwtService.verifyToken(token);
+    // Reject tokens minted for a different customer (tenant isolation). Tokens with no customer
+    // claim (legacy/v1) are allowed through — the per-tenant user lookup below still gates them.
+    if (claims?.customer && claims.customer !== this.jwtService.customer) {
+      throw new UnauthorizedException({ valid: false });
+    }
+    const username = claims?.username ?? null;
     const user = username ? await this.userService.findByUsername(username) : null;
     if (!username || !user) {
       // 401 with { valid: false } — the shape core/notification/booking-engine expect.
       throw new UnauthorizedException({ valid: false });
     }
-    return { valid: true, username, email: user.email, userId: String(user._id) };
+    // `activeProfile` (role) and `customer` (tenant) are additive — existing consumers ignore them;
+    // store-engine uses the role for admin authz and the customer for tenant enforcement.
+    return {
+      valid: true,
+      username,
+      email: user.email,
+      userId: String(user._id),
+      activeProfile: user.activeProfile,
+      customer: this.jwtService.customer,
+    };
   }
 
   @Post('verify-google')

@@ -6,12 +6,20 @@ registers/authenticates users (username+password and Google), and publishes user
 
 Runs **alongside** the Java v1 on a **new port (9081)** against the same MongoDB (`users`) and Kafka.
 
+## Multi-tenancy (per-customer isolation)
+
+One instance serves one **customer**, set by the `CUSTOMER` env var: its users live in the
+`authentication-<customer>` DB, and issued JWTs carry a `customer` claim that `/auth/verify` and
+downstream backends enforce. Onboard a new customer by running another instance with a different
+`CUSTOMER` + `MONGODB_URI` — no code changes. See **[ONBOARDING-A-CUSTOMER.md](ONBOARDING-A-CUSTOMER.md)**
+for the step-by-step guide.
+
 ## Token & password interoperability (the critical part)
 
 - **JWT**: HS256, key = the **base64-decoded** secret (default is the exact key baked into the Java
-  `JwtService`), claims `{ username, sub, iat, exp }`, 24h. Because key + algorithm + claim shape
-  match v1, **v1- and v2-issued tokens verify on either stack**. A unit test signs a "v1-shaped"
-  token and verifies it under v2.
+  `JwtService`), claims `{ username, sub, customer, iat, exp }`, 24h. The additive `customer` claim
+  (see Multi-tenancy above) is ignored by v1 verification, so **v1- and v2-issued tokens still
+  verify on either stack**. A unit test signs a "v1-shaped" token and verifies it under v2.
 - **Passwords**: bcrypt (`bcryptjs`, strength 10) — hash-compatible with Spring's
   `BCryptPasswordEncoder`, so v1-hashed passwords verify under v2 and vice versa.
 - Same `users` collection, field names, and unique username/email indexes.
@@ -22,7 +30,7 @@ Runs **alongside** the Java v1 on a **new port (9081)** against the same MongoDB
 |---|---|---|
 | POST | `/register?type=SIMPLE&googleToken=` | 201 `{message, user}`; 409 if the user exists |
 | POST | `/login?type=SIMPLE` | 201 `{token, user}` (user excludes the password hash); 401 on bad creds |
-| POST | `/verify` | `{token}` → `{valid, username, email, userId}` (400 missing, 401 invalid) |
+| POST | `/verify` | `{token}` → `{valid, username, email, userId, activeProfile, customer}` (400 missing, 401 invalid or wrong-tenant) |
 | GET | `/user/{username}` | public user view (no password); 404 if missing |
 | PATCH | `/user/{username}` | update firstname/lastname/phone/activeProfile/image |
 | POST | `/forgot-password?email=` | always 200; emits a reset event if the account exists |

@@ -15,20 +15,35 @@ export class JwtService {
   private readonly key: Buffer;
   private readonly expiresIn: string;
   private readonly resetExpiresIn: string;
+  /** Tenant this deployment issues/accepts tokens for. */
+  readonly customer: string;
 
   constructor(config: ConfigService<AppConfig, true>) {
     const j = config.get('jwt', { infer: true });
     this.key = Buffer.from(j.secretBase64, 'base64');
     this.expiresIn = j.expiresIn;
     this.resetExpiresIn = j.resetExpiresIn;
+    this.customer = config.get('customer', { infer: true });
   }
 
   generateToken(username: string): string {
-    return jwt.sign({ username }, this.key, {
+    return jwt.sign({ username, customer: this.customer }, this.key, {
       algorithm: 'HS256',
       subject: username,
       expiresIn: this.expiresIn as jwt.SignOptions['expiresIn'],
     });
+  }
+
+  /** Verify a login token and return its claims, or null if invalid/expired. */
+  verifyToken(token: string): { username: string; customer?: string } | null {
+    try {
+      const d = jwt.verify(token, this.key, { algorithms: ['HS256'] }) as jwt.JwtPayload;
+      const username = d.sub ?? (d.username as string | undefined) ?? null;
+      if (!username) return null;
+      return { username, customer: d.customer as string | undefined };
+    } catch {
+      return null;
+    }
   }
 
   generatePasswordResetToken(username: string): string {

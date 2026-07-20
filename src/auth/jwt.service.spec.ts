@@ -6,8 +6,9 @@ import { JwtService } from './jwt.service';
 const V1_KEY = '5B6F7D3E2A9C4B8E0A1F6D9B3E7A2C9D4F8E5B6C3A7B1D6F4C9A3E8D2B5F7A1';
 
 function svc(overrides: Partial<{ secretBase64: string; expiresIn: string; resetExpiresIn: string }> = {}): JwtService {
+  const jwtCfg = { secretBase64: V1_KEY, expiresIn: '24h', resetExpiresIn: '15m', ...overrides };
   const config = {
-    get: () => ({ secretBase64: V1_KEY, expiresIn: '24h', resetExpiresIn: '15m', ...overrides }),
+    get: (key: string) => (key === 'customer' ? 'test-customer' : jwtCfg),
   } as unknown as ConfigService;
   return new JwtService(config as never);
 }
@@ -20,6 +21,7 @@ describe('JwtService (v1-compatible)', () => {
     const payload = decoded.payload as jwt.JwtPayload;
     expect(payload.username).toBe('alice');
     expect(payload.sub).toBe('alice');
+    expect(payload.customer).toBe('test-customer');
     expect(payload.iat).toBeDefined();
     expect(payload.exp).toBeDefined();
     // ~24h expiry
