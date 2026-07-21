@@ -1,12 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
-/** UI-switching profile (matches the Java Role enum, plus the additive BUSINESS_OWNER/STAFF). */
+/** Access role. ADMIN/STAFF are privileged (admin on consuming backends); SIMPLE is a normal user. */
 export enum Role {
-  WISHER = 'WISHER',
-  COPILOT = 'COPILOT',
-  BUSINESS_OWNER = 'BUSINESS_OWNER',
+  ADMIN = 'ADMIN',
   STAFF = 'STAFF',
+  SIMPLE = 'SIMPLE',
 }
 
 export enum AuthType {
@@ -43,7 +42,7 @@ export class User {
   @Prop()
   image?: string;
 
-  @Prop({ enum: Role, default: Role.WISHER })
+  @Prop({ enum: Role, default: Role.SIMPLE })
   activeProfile!: Role;
 
   @Prop({ enum: AuthType, default: AuthType.SIMPLE })

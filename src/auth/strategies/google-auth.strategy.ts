@@ -14,16 +14,16 @@ export class GoogleAuthStrategy {
     private readonly googleVerifier: GoogleVerifierService,
   ) {}
 
-  async authenticate(vo: UserVoDto): Promise<UserDocument> {
+  async authenticate(vo: UserVoDto, customer: string): Promise<UserDocument> {
     const payload = await this.googleVerifier.verify(vo.googleToken ?? '');
-    const user = payload.email ? await this.userService.findByEmail(payload.email) : null;
+    const user = payload.email ? await this.userService.findByEmail(customer, payload.email) : null;
     if (!user) {
       throw new UnauthorizedException('User not registered. Please sign up first.');
     }
     return user;
   }
 
-  async register(vo: UserVoDto): Promise<UserDocument> {
+  async register(vo: UserVoDto, customer: string): Promise<UserDocument> {
     const payload = await this.googleVerifier.verify(vo.googleToken ?? '');
     if (!payload.email_verified) {
       throw new UnauthorizedException('Google authentication failed');
@@ -32,9 +32,9 @@ export class GoogleAuthStrategy {
     if (payload.email !== vo.email) {
       throw new UnauthorizedException('Email does not match Google account');
     }
-    if (vo.email && (await this.userService.findByEmail(vo.email))) {
+    if (vo.email && (await this.userService.findByEmail(customer, vo.email))) {
       throw new ConflictException('User already exists');
     }
-    return this.userService.registerUser(vo, AuthType.GOOGLE);
+    return this.userService.registerUser(customer, vo, AuthType.GOOGLE);
   }
 }

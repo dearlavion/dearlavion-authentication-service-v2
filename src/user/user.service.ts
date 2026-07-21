@@ -1,35 +1,37 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import { hashPassword } from '../auth/password.util';
+import { TenantService } from '../tenant/tenant.service';
 import { AuthType, User, UserDocument } from './user.schema';
 import { UserVoDto, UserView } from './user.dto';
 
+// Every lookup/write is scoped to a customer's own DB, resolved via TenantService.
 @Injectable()
 export class UserService {
-  constructor(@InjectModel(User.name) private readonly model: Model<UserDocument>) {}
+  constructor(private readonly tenants: TenantService) {}
 
-  findByUsername(username: string): Promise<UserDocument | null> {
-    return this.model.findOne({ username }).exec();
+  findByUsername(customer: string, username: string): Promise<UserDocument | null> {
+    return this.tenants.userModel(customer).findOne({ username }).exec();
   }
 
-  findByEmail(email: string): Promise<UserDocument | null> {
-    return this.model.findOne({ email }).exec();
+  findByEmail(customer: string, email: string): Promise<UserDocument | null> {
+    return this.tenants.userModel(customer).findOne({ email }).exec();
   }
 
-  async loadByUsernameOrThrow(username: string): Promise<UserDocument> {
-    const user = await this.findByUsername(username);
+  async loadByUsernameOrThrow(customer: string, username: string): Promise<UserDocument> {
+    const user = await this.findByUsername(customer, username);
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
 
-  async registerUser(vo: UserVoDto, type: AuthType): Promise<UserDocument> {
+  async registerUser(customer: string, vo: UserVoDto, type: AuthType): Promise<UserDocument> {
     try {
-      return await this.model.create({
+      return await this.tenants.userModel(customer).create({
         username: vo.username,
         email: vo.email,
         phone: vo.phone,
         password: vo.password ? hashPassword(vo.password) : undefined,
+        // Already gated by the controller (privileged roles need X-Provision-Secret); defaults to SIMPLE.
+        activeProfile: vo.activeProfile,
         type,
       });
     } catch (e) {
@@ -40,8 +42,8 @@ export class UserService {
     }
   }
 
-  async updateUser(username: string, u: UserVoDto): Promise<UserDocument> {
-    const user = await this.loadByUsernameOrThrow(username);
+  async updateUser(customer: string, username: string, u: UserVoDto): Promise<UserDocument> {
+    const user = await this.loadByUsernameOrThrow(customer, username);
     if (u.firstname != null) user.firstname = u.firstname;
     if (u.lastname != null) user.lastname = u.lastname;
     if (u.phone != null) user.phone = u.phone;
@@ -50,8 +52,8 @@ export class UserService {
     return user.save();
   }
 
-  async updatePassword(username: string, newPassword: string): Promise<void> {
-    const user = await this.loadByUsernameOrThrow(username);
+  async updatePassword(customer: string, username: string, newPassword: string): Promise<void> {
+    const user = await this.loadByUsernameOrThrow(customer, username);
     user.password = hashPassword(newPassword);
     await user.save();
   }

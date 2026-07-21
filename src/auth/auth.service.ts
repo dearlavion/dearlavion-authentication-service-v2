@@ -11,8 +11,8 @@ import {
 
 interface AuthStrategy {
   type: AuthType;
-  authenticate(vo: UserVoDto): Promise<UserDocument>;
-  register(vo: UserVoDto): Promise<UserDocument>;
+  authenticate(vo: UserVoDto, customer: string): Promise<UserDocument>;
+  register(vo: UserVoDto, customer: string): Promise<UserDocument>;
 }
 
 @Injectable()

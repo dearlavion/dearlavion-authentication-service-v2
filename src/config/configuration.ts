@@ -4,8 +4,12 @@
  */
 export interface AppConfig {
   port: number;
-  /** Tenant this deployment serves. Stamped into issued JWTs and enforced on verify. */
-  customer: string;
+  /** Customers (tenants) this instance serves. Each has its own `authentication-<customer>` DB;
+   * the per-request `X-Customer` header (or a token's `customer` claim) selects one. */
+  customers: string[];
+  /** Secret required (via X-Provision-Secret) to set a privileged role at register/update time.
+   * Empty ⇒ privileged roles can never be assigned through the API (fail closed). */
+  provisionSecret: string;
   mongoUri: string;
   jwt: {
     secretBase64: string;
@@ -27,7 +31,13 @@ const V1_JWT_KEY = '5B6F7D3E2A9C4B8E0A1F6D9B3E7A2C9D4F8E5B6C3A7B1D6F4C9A3E8D2B5F
 
 export default (): AppConfig => ({
   port: parseInt(process.env.PORT ?? '9081', 10),
-  customer: process.env.CUSTOMER ?? 'dearlavion',
+  // Prefer the multi-tenant CUSTOMERS list; fall back to the legacy single CUSTOMER for
+  // back-compat, then to 'dearlavion'.
+  customers: (process.env.CUSTOMERS ?? process.env.CUSTOMER ?? 'dearlavion')
+    .split(',')
+    .map((c) => c.trim())
+    .filter(Boolean),
+  provisionSecret: (process.env.PROVISION_SECRET ?? '').trim(),
   mongoUri: process.env.MONGODB_URI ?? 'mongodb://localhost:27017/authentication-service',
   jwt: {
     secretBase64: process.env.JWT_SECRET ?? V1_JWT_KEY,

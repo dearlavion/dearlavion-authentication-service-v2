@@ -11,10 +11,10 @@ export class SimpleAuthStrategy {
 
   constructor(private readonly userService: UserService) {}
 
-  async authenticate(vo: UserVoDto): Promise<UserDocument> {
-    let user = vo.username ? await this.userService.findByUsername(vo.username) : null;
+  async authenticate(vo: UserVoDto, customer: string): Promise<UserDocument> {
+    let user = vo.username ? await this.userService.findByUsername(customer, vo.username) : null;
     if (!user && vo.email) {
-      user = await this.userService.findByEmail(vo.email);
+      user = await this.userService.findByEmail(customer, vo.email);
     }
     if (!user || !matchesPassword(vo.password ?? '', user.password)) {
       throw new UnauthorizedException('Invalid credentials');
@@ -22,10 +22,10 @@ export class SimpleAuthStrategy {
     return user;
   }
 
-  async register(vo: UserVoDto): Promise<UserDocument> {
-    if (vo.email && (await this.userService.findByEmail(vo.email))) {
+  async register(vo: UserVoDto, customer: string): Promise<UserDocument> {
+    if (vo.email && (await this.userService.findByEmail(customer, vo.email))) {
       throw new ConflictException('User already exists');
     }
-    return this.userService.registerUser(vo, AuthType.SIMPLE);
+    return this.userService.registerUser(customer, vo, AuthType.SIMPLE);
   }
 }

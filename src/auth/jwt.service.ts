@@ -15,19 +15,17 @@ export class JwtService {
   private readonly key: Buffer;
   private readonly expiresIn: string;
   private readonly resetExpiresIn: string;
-  /** Tenant this deployment issues/accepts tokens for. */
-  readonly customer: string;
 
   constructor(config: ConfigService<AppConfig, true>) {
     const j = config.get('jwt', { infer: true });
     this.key = Buffer.from(j.secretBase64, 'base64');
     this.expiresIn = j.expiresIn;
     this.resetExpiresIn = j.resetExpiresIn;
-    this.customer = config.get('customer', { infer: true });
   }
 
-  generateToken(username: string): string {
-    return jwt.sign({ username, customer: this.customer }, this.key, {
+  /** Login token, stamped with the caller's customer/tenant. */
+  generateToken(username: string, customer: string): string {
+    return jwt.sign({ username, customer }, this.key, {
       algorithm: 'HS256',
       subject: username,
       expiresIn: this.expiresIn as jwt.SignOptions['expiresIn'],
@@ -46,8 +44,8 @@ export class JwtService {
     }
   }
 
-  generatePasswordResetToken(username: string): string {
-    return jwt.sign({ type: 'PASSWORD_RESET' }, this.key, {
+  generatePasswordResetToken(username: string, customer: string): string {
+    return jwt.sign({ type: 'PASSWORD_RESET', customer }, this.key, {
       algorithm: 'HS256',
       subject: username,
       expiresIn: this.resetExpiresIn as jwt.SignOptions['expiresIn'],
@@ -64,8 +62,8 @@ export class JwtService {
     }
   }
 
-  /** Validates a reset token and returns its username, or throws 401. */
-  validatePasswordResetToken(token: string): string {
+  /** Validates a reset token and returns its username + customer, or throws 401. */
+  validatePasswordResetToken(token: string): { username: string; customer?: string } {
     let decoded: jwt.JwtPayload;
     try {
       decoded = jwt.verify(token, this.key, { algorithms: ['HS256'] }) as jwt.JwtPayload;
@@ -75,6 +73,6 @@ export class JwtService {
     if (decoded.type !== 'PASSWORD_RESET') {
       throw new UnauthorizedException('Invalid token type');
     }
-    return decoded.sub as string;
+    return { username: decoded.sub as string, customer: decoded.customer as string | undefined };
   }
 }

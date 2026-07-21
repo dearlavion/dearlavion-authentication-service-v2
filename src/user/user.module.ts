@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { User, UserSchema } from './user.schema';
+import { TenantService } from '../tenant/tenant.service';
 import { UserService } from './user.service';
 
+// No MongooseModule.forFeature here: the User model is resolved per-customer at runtime by
+// TenantService (each customer has its own authentication-<customer> DB). The root connection
+// comes from MongooseModule.forRootAsync in AppModule and is injectable app-wide.
 @Module({
-  imports: [MongooseModule.forFeature([{ name: User.name, schema: UserSchema }])],
-  providers: [UserService],
-  exports: [UserService],
+  providers: [TenantService, UserService],
+  exports: [UserService, TenantService],
 })
 export class UserModule {}
