@@ -1,11 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
-/** Access role. ADMIN/STAFF are privileged (admin on consuming backends); SIMPLE is a normal user. */
+/** Access role. ADMIN/STAFF are privileged (admin on consuming backends); USER is a normal user. */
 export enum Role {
   ADMIN = 'ADMIN',
   STAFF = 'STAFF',
-  SIMPLE = 'SIMPLE',
+  USER = 'USER',
 }
 
 export enum AuthType {
@@ -42,7 +42,7 @@ export class User {
   @Prop()
   image?: string;
 
-  @Prop({ enum: Role, default: Role.SIMPLE })
+  @Prop({ enum: Role, default: Role.USER })
   activeProfile!: Role;
 
   @Prop({ enum: AuthType, default: AuthType.SIMPLE })

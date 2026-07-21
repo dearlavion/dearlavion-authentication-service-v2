@@ -144,13 +144,13 @@ describe('Auth API (e2e)', () => {
   });
 
   it('privileged role at register/patch requires the provisioning secret', async () => {
-    // register asking for ADMIN without the secret -> forced SIMPLE
+    // register asking for ADMIN without the secret -> forced USER
     await http()
       .post('/auth/register')
       .set('X-Customer', CUST)
       .send({ username: 'wannabe', email: 'wannabe@example.com', password: 'Secret123!', activeProfile: 'ADMIN' })
       .expect(201);
-    expect((await http().get('/auth/user/wannabe').set('X-Customer', CUST)).body.activeProfile).toBe('SIMPLE');
+    expect((await http().get('/auth/user/wannabe').set('X-Customer', CUST)).body.activeProfile).toBe('USER');
 
     // register with the secret -> ADMIN honored
     await http()
@@ -163,7 +163,7 @@ describe('Auth API (e2e)', () => {
 
     // PATCH role change without the secret is ignored...
     await http().patch('/auth/user/wannabe').set('X-Customer', CUST).send({ activeProfile: 'ADMIN' }).expect(200);
-    expect((await http().get('/auth/user/wannabe').set('X-Customer', CUST)).body.activeProfile).toBe('SIMPLE');
+    expect((await http().get('/auth/user/wannabe').set('X-Customer', CUST)).body.activeProfile).toBe('USER');
 
     // ...but works with the secret.
     await http()

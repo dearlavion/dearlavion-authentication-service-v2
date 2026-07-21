@@ -95,8 +95,8 @@ curl -X POST http://localhost:9081/auth/register \
   -d '{"username":"owner","email":"owner@example.com","password":"secret123","activeProfile":"ADMIN"}'
 ```
 
-Roles that grant admin: **`ADMIN`**, **`STAFF`**. `SIMPLE` is a regular user (the default). Assigning
-`ADMIN`/`STAFF` requires the `X-Provision-Secret` header — without it the user is created/kept `SIMPLE`.
+Roles that grant admin: **`ADMIN`**, **`STAFF`**. `USER` is a regular user (the default). Assigning
+`ADMIN`/`STAFF` requires the `X-Provision-Secret` header — without it the user is created/kept `USER`.
 The same username/email may exist under a **different** customer — the tenants are fully separate.
 
 ### 4. Point the customer's backend at the shared instance

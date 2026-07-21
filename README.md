@@ -35,13 +35,15 @@ CUSTOMERS=travel-besty,acme          # add the new slug, then restart
 
 Full walkthrough (backend + frontend wiring): **[ONBOARDING-A-CUSTOMER.md](ONBOARDING-A-CUSTOMER.md)**.
 
-Roles are **`ADMIN`**, **`STAFF`** (both privileged — admin on consuming backends) and **`SIMPLE`**
-(a normal user, the default). Assigning a privileged role is gated by the **`X-Provision-Secret`**
-header (matching the `PROVISION_SECRET` env), so the public signup endpoint can't self-grant admin.
+Roles (`activeProfile`) are **`ADMIN`**, **`STAFF`** (both privileged — admin on consuming backends)
+and **`USER`** (a normal user, the default). Assigning a privileged role is gated by the
+**`X-Provision-Secret`** header (matching the `PROVISION_SECRET` env), so the public signup endpoint
+can't self-grant admin. *(Don't confuse `activeProfile` — the **role** — with `type`, the **login
+method**: `SIMPLE` = username/password, `GOOGLE` = OAuth.)*
 
 ### 2. Register a user (regular customer/traveler)
 
-`POST /auth/register` with `X-Customer`. New users are always created as `SIMPLE` — any `activeProfile`
+`POST /auth/register` with `X-Customer`. New users are always created as `USER` — any `activeProfile`
 in the body is ignored without the provisioning secret.
 
 ```bash
@@ -49,7 +51,7 @@ curl -X POST http://localhost:9081/auth/register \
   -H 'content-type: application/json' \
   -H 'X-Customer: travel-besty' \
   -d '{"username":"traveler","email":"traveler@example.com","password":"secret123"}'
-# → 201 { "message": "User registered successfully", "user": "traveler" }   (role: SIMPLE)
+# → 201 { "message": "User registered successfully", "user": "traveler" }   (role: USER)
 # 409 if the username/email already exists in this tenant.
 ```
 
@@ -90,7 +92,7 @@ curl -s -X POST http://localhost:9081/auth/verify -H 'content-type: application/
 ```
 
 > Without a valid `X-Provision-Secret`, both `register` and `PATCH` silently force/ignore the role so
-> the user stays `SIMPLE`. If `PROVISION_SECRET` is unset, privileged roles can't be assigned via the
+> the user stays `USER`. If `PROVISION_SECRET` is unset, privileged roles can't be assigned via the
 > API at all (fail closed). The `ADMIN_USERNAMES` allowlist on the consuming backend remains only as a
 > bootstrap escape hatch.
 
@@ -125,7 +127,7 @@ the tenant from the token instead. An unknown/missing customer on a header-scope
 
 | Method | Path | `X-Customer`? | Notes |
 |---|---|---|---|
-| POST | `/register?type=SIMPLE&googleToken=` | **required** | 201 `{message, user}`; 409 if the user exists. `activeProfile` (ADMIN/STAFF) honored only with `X-Provision-Secret`, else SIMPLE |
+| POST | `/register?type=SIMPLE&googleToken=` | **required** | 201 `{message, user}`; 409 if the user exists. `activeProfile` (ADMIN/STAFF) honored only with `X-Provision-Secret`, else USER |
 | POST | `/login?type=SIMPLE` | **required** | 201 `{token, user}` (user excludes the password hash; includes `customer`); 401 on bad creds |
 | POST | `/verify` | — (from token) | `{token}` → `{valid, username, email, userId, activeProfile, customer}` (400 missing token, 401 invalid/wrong-tenant) |
 | GET | `/user/{username}` | **required** | public user view (no password); 404 if missing |

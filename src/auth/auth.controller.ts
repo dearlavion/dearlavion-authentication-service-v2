@@ -58,9 +58,9 @@ export class AuthController {
     if (!this.googleEnabled) type = AuthType.SIMPLE;
     if (type === AuthType.GOOGLE && googleToken) request.googleToken = googleToken;
 
-    // A privileged role from the body is honored only with the provisioning secret; else SIMPLE.
+    // A privileged role from the body is honored only with the provisioning secret; else USER.
     const wantsPrivileged = request.activeProfile === Role.ADMIN || request.activeProfile === Role.STAFF;
-    request.activeProfile = wantsPrivileged && this.canProvision(provisionSecret) ? request.activeProfile : Role.SIMPLE;
+    request.activeProfile = wantsPrivileged && this.canProvision(provisionSecret) ? request.activeProfile : Role.USER;
 
     const strategy = this.authService.resolve(type);
     const user = await strategy.register(request, customer);
