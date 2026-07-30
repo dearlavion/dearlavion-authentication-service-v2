@@ -83,8 +83,12 @@ jobs:
         working-directory: dearlavion-projects/ansible
         run: |
           export PATH=$HOME/.local/bin:$PATH
+          # The v2 roles load an ansible-vault secrets file, so provide the vault password.
+          printf '%s' "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > /tmp/.vault_pass
           ansible-playbook \
             playbook/site.yml \
             -i inventory/hosts.ini \
+            --vault-password-file /tmp/.vault_pass \
             -e "target=auth-v2 env=dev ssh_user=baish ssh_host=157.173.97.37 use_registry=true ghcr_pat=${{ secrets.DEARLAVION_PAT }}" \
             --ssh-extra-args="-o StrictHostKeyChecking=no"
+          rm -f /tmp/.vault_pass

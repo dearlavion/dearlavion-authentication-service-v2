@@ -13,6 +13,14 @@ async function bootstrap() {
     new ValidationPipe({ whitelist: true, transform: true, transformOptions: { enableImplicitConversion: true } }),
   );
 
+  // Extra allowed origins from the environment (comma-separated) — e.g. a deployed customer UI's
+  // public origin. Appended to the built-in dev/known origins so a new tenant UI doesn't need a
+  // code change.
+  const extraOrigins = (process.env.FRONTEND_ORIGINS ?? '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   app.enableCors({
     origin: [
       'http://dearlavion.site',
@@ -20,6 +28,7 @@ async function bootstrap() {
       'https://www.dearlavion.site',
       /\.ngrok\.pizza$/,
       'http://localhost:4200',
+      ...extraOrigins,
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     credentials: true,
